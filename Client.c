@@ -176,7 +176,7 @@ void ClientView(int clientFD){
     write(1,"Client Operations \n",20);
 
     while(1){
-        write(1,"\n1)Display all Products\n2)Display Cart\n3)Update Cart\n4)Buy items in cart\n5)Client Exit\n\n",89);
+        write(1,"\n1)Display all Products\n2)Display Cart\n3)Update Cart\n4)Buy items in Cart\n5)Client Exit\n\n",89);
         write(1, "Enter an option: ", 18);
         int choice=0;
         scanf("%d", &choice);
@@ -195,11 +195,11 @@ void ClientView(int clientFD){
                 
                 struct Product *p=(struct Product *)malloc(sizeof(struct Product)*1000);
                 read(clientFD, p,sizeof(struct Product)*1000);
-                write(1, "P_ID, P_Name, Cost, Quantity\n",30);
+                write(1, "P_ID, P_Name, Cost, Quantity, SubTotal\n",40);
                 int i=0;
                 int totalcost=0;
                 while(p[i].ProductId!=0 && i<1000){
-                    printf("%d, %s, %d, %d\n", p[i].ProductId, p[i].ProductName, p[i].cost, p[i].quantity);
+                    printf("%d, %s, %d, %d, %d\n", p[i].ProductId, p[i].ProductName, p[i].cost, p[i].quantity, p[i].cost*p[i].quantity);
                     totalcost+=p[i].quantity*p[i].cost;
                     i++;
                 }
@@ -213,7 +213,7 @@ void ClientView(int clientFD){
         else if(choice==3){
             send(clientFD,"UpdateCart",11,0);
             int subchoice;
-            write(1,"1)Add new item to cart\n2)Delete item from cart\n3)Modify quantity of item in cart\n\nEnter choice: ", 97);
+            write(1,"1)Add new item to Cart\n2)Delete item from Cart\n3)Modify quantity of item in Cart\n\nEnter choice: ", 97);
             scanf("%d", &subchoice);
             memset(response, '\0', sizeof(response));
 
@@ -255,7 +255,67 @@ void ClientView(int clientFD){
 
         }
         else if(choice==4){
+            //need lock here
+            memset(response, '\0', sizeof(response));
+            send(clientFD, "BuyNow", 7,0);
+            int quantity[1000],invalid[100];
+            struct Product *cart=(struct Product *)malloc(sizeof(struct Product)*1000);
+            read(clientFD, quantity,sizeof(int)*1000);
+            read(clientFD,cart,sizeof(struct Product)*1000);
+            
+            write(1,"\nItems ready for buying: \n",27);
+            write(1, "\nP_ID, P_Name, Cost, Quantity, Subtotal\n\n",42);
+            int totalcost=0,size=0,esize=0;
+            for(int i=0;i<1000;i++){
+                if(cart[i].ProductId!=0){
+                    if(cart[i].quantity<=quantity[cart[i].ProductId]){
+                        printf("%d, %s, %d, %d, %d\n", cart[i].ProductId, cart[i].ProductName, cart[i].cost, cart[i].quantity, cart[i].cost*cart[i].quantity);
+                        totalcost+=cart[i].quantity*cart[i].cost;
+                        size++;
+                    }
+                    else invalid[esize++]=i;
+                } 
+            }
+            if(esize>0){
+                write(1,"The following products can't be bought as the quantity asked is more than the quantity available\n",98);
+                for(int i=0;i<esize;i++){
+                    printf("%s , quantity asked: %d, quantity available: %d\n", cart[invalid[i]].ProductName, cart[invalid[i]].quantity, quantity[cart[invalid[i]].ProductId]);
+                }
+            }
 
+            printf("\nTotal Cart Size: %d\n", size);
+            printf("Total Cost: %d\n", totalcost);
+
+            write(1,"The items listed first are available, enter the total amount to verify payment\nEnter amount: ",94);
+            int amount=0;
+            scanf("%d",&amount);
+            printf("%d\n", amount);
+            if(amount==totalcost){
+                send(clientFD,"ResetCart",10,0);
+                read(clientFD,response,100);
+                write(1,response,strlen(response));
+                int logfd=open("log.txt",O_CREAT|O_WRONLY,0666);
+                write(logfd,"Receipt\n\n",10);
+                write(logfd, "P_ID, P_Name, Cost, Quantity\n",30);
+                char output[200], result[200];
+                for(int i=0;i<1000;i++){
+                    if(cart[i].ProductId!=0){
+                        if(cart[i].quantity<=quantity[cart[i].ProductId]){
+                            
+                            sprintf(output, "%d, %s, %d, %d, %d\n", cart[i].ProductId, cart[i].ProductName, cart[i].cost, cart[i].quantity, cart[i].cost*cart[i].quantity);
+                            write(logfd,output,strlen(output));
+                        }
+                    } 
+                }
+                sprintf(result,"Total Cart Size: %d\nTotal Cost: %d\n", size,totalcost);
+                write(logfd,result,strlen(result));
+                
+            }
+            else{
+                send(clientFD,"Failed",8,0);
+                write(1,"Payment failed. Please try again!!\n", 36);
+            } 
+            // make log file
         }
         else if(choice==5) break;
         write(1,"------------------------------------------------------------------------\n",74);

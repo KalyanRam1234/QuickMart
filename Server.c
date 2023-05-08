@@ -152,6 +152,42 @@ void pthread_func(void *arg){
             send(*nsd,ps,sizeof(struct Product)*1000,0);
 
         }
+
+        else if(strcmp(buffer,"BuyNow")==0){
+            struct Product *ps=(struct Product *)malloc(sizeof(struct Product)*1000);
+            int quantity[1000];
+            lseek(DB->Cartfd,(session.userid-1)*(sizeof(struct Cart)),SEEK_SET);
+            ps=DisplayProducts(DB->Datafd, 0,(void *)0);
+            for(int i=0;i<1000;i++){
+                if(ps[i].ProductId<=1000) quantity[ps[i].ProductId]=ps[i].quantity;
+            }
+            send(*nsd,quantity,sizeof(int)*1000,0);
+
+            ps=DisplayProducts(DB->Datafd,1,session.items);
+            send(*nsd,ps,sizeof(struct Product)*1000,0);
+
+            char buf[100];
+            read(*nsd,buf,100);
+            if(strcmp(buf,"ResetCart")==0){
+                
+                for(int i=0;i<1000;i++){
+                    if(ps[i].ProductId>0 && ps[i].quantity<=quantity[ps[i].ProductId]){
+                       int x=UpdateProductQ(ps[i],1);
+                       if(!x){
+
+                            session.items[ps[i].ProductId].ProductId=-1;
+                            session.items[ps[i].ProductId].quantity=0;
+                            write(DB->Cartfd,&session, sizeof(struct Cart));
+                            lseek(DB->Cartfd,(-1)*(sizeof(struct Cart)),SEEK_CUR);
+                       }
+                    } 
+                }
+
+                send(*nsd,"Payment is successful, the receipt is available in pwd.\nYour cart is updated\n",78,0);
+            }
+
+        }
+
         else if(strcmp(buffer, "UpdateCart")==0){
         
             lseek(DB->Cartfd,(session.userid-1)*(sizeof(struct Cart)),SEEK_SET);
@@ -226,7 +262,7 @@ void pthread_func(void *arg){
             }
 
         }
-
+        
         else if(strcmp(buffer, "Login")==0){
 
             send(*nsd,"Enter Username: ", 17, 0);

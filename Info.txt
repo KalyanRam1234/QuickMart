@@ -18,3 +18,4 @@ for add/modify/delete , get product id from client and modify struct cart accord
 when checking client view, once user enters username, we check if username exists, if it doesn't , then we add user to file.
 
 when buying, check if the quantity required is available, if not then write them separately
+might have to make copy of file descriptor...
