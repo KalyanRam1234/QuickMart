@@ -1,0 +1,20 @@
+Open terminal -> Two options: Admin and User
+
+Admin: Add/del product and Update the quantity/price of existing product
+-> While quantity/price is being changed by admin: Lock that product from being added to cart by user using semaphore
+
+User: Display all products along with product info
+Display cart of customer
+When user wants to buy items, the items that are to be bought needs to be locked to avoid other users from buying them. If there is a  second customer that wants to buy the same item, the item quantity needs to be decreased/removed after the first customer is done with their transaction.
+
+If only one product is being bought by a customer/ being updated by admin, rest of the products should not be locked.
+
+make a file with cart details of each user with username and array of product id's as the struct cart
+
+retrieve this info from the file, then read the product id's and get the info from the data file then send it to the client.
+
+for add/modify/delete , get product id from client and modify struct cart accordingly
+
+when checking client view, once user enters username, we check if username exists, if it doesn't , then we add user to file.
+
+when buying, check if the quantity required is available, if not then write them separately
