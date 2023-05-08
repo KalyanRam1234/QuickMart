@@ -295,8 +295,7 @@ void ClientView(int clientFD){
                 read(clientFD,response,100);
                 write(1,response,strlen(response));
                 int logfd=open("log.txt",O_CREAT|O_WRONLY,0666);
-                write(logfd,"Receipt\n\n",10);
-                write(logfd, "P_ID, P_Name, Cost, Quantity\n",30);
+                write(logfd,"Receipt\nP_ID, P_Name, Cost, Quantity\n",37);
                 char output[200], result[200];
                 for(int i=0;i<1000;i++){
                     if(cart[i].ProductId!=0){
