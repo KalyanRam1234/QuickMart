@@ -48,9 +48,9 @@ void FileOperations(){
     int fd1=open("Deleted.dat", O_CREAT|O_RDWR, 0666);
     if(fd1>0){
         DB->Deletedfd=fd1;
-        int arr[1000];
-        for(int i=0;i<1000;i++) arr[i]=-1;
-        read(DB->Deletedfd,arr,1000);
+        int arr[MAX_SIZE];
+        for(int i=0;i<MAX_SIZE;i++) arr[i]=-1;
+        read(DB->Deletedfd,arr,MAX_SIZE);
         memcpy(DB->DeletedP,arr,sizeof(DB->DeletedP));
     } 
 
@@ -90,8 +90,8 @@ void pthread_func(void *arg){
     struct Cart session={0};
     while(1){//Add other options
 
-        char buffer[1000]={0};
-        read(*nsd,buffer,1000);
+        char buffer[MAX_SIZE]={0};
+        read(*nsd,buffer,MAX_SIZE);
         struct Product p={0};
         write(1,buffer,strlen(buffer));
         write(1,"\n", 1);
@@ -136,41 +136,41 @@ void pthread_func(void *arg){
 
         else if(strcmp(buffer, "DisplayP")==0){
 
-            struct Product *ps=(struct Product *)malloc(sizeof(struct Product)*1000);
+            struct Product *ps=(struct Product *)malloc(sizeof(struct Product)*MAX_SIZE);
             ps=DisplayProducts(DB->Datafd, 0,(void *)0);
             int i=0;
-            send(*nsd,ps,sizeof(struct Product)*1000,0);
+            send(*nsd,ps,sizeof(struct Product)*MAX_SIZE,0);
         }
 
         else if(strcmp(buffer, "DisplayCart")==0){
             lseek(DB->Cartfd,(session.userid-1)*sizeof(struct Cart),SEEK_SET);
             read(DB->Cartfd,&session,sizeof(struct Cart));
-            struct Product *ps=(struct Product *)malloc(sizeof(struct Product)*1000);
+            struct Product *ps=(struct Product *)malloc(sizeof(struct Product)*MAX_SIZE);
 
             ps=DisplayProducts(DB->Datafd,1,session.items);
 
-            send(*nsd,ps,sizeof(struct Product)*1000,0);
+            send(*nsd,ps,sizeof(struct Product)*MAX_SIZE,0);
 
         }
 
         else if(strcmp(buffer,"BuyNow")==0){
-            struct Product *ps=(struct Product *)malloc(sizeof(struct Product)*1000);
-            int quantity[1000];
+            struct Product *ps=(struct Product *)malloc(sizeof(struct Product)*MAX_SIZE);
+            int quantity[MAX_SIZE];
             lseek(DB->Cartfd,(session.userid-1)*(sizeof(struct Cart)),SEEK_SET);
             ps=DisplayProducts(DB->Datafd, 0,(void *)0);
-            for(int i=0;i<1000;i++){
-                if(ps[i].ProductId<=1000) quantity[ps[i].ProductId]=ps[i].quantity;
+            for(int i=0;i<MAX_SIZE;i++){
+                if(ps[i].ProductId<=MAX_SIZE) quantity[ps[i].ProductId]=ps[i].quantity;
             }
-            send(*nsd,quantity,sizeof(int)*1000,0);
+            send(*nsd,quantity,sizeof(int)*MAX_SIZE,0);
 
             ps=DisplayProducts(DB->Datafd,1,session.items);
-            send(*nsd,ps,sizeof(struct Product)*1000,0);
+            send(*nsd,ps,sizeof(struct Product)*MAX_SIZE,0);
 
             char buf[100];
             read(*nsd,buf,100);
             if(strcmp(buf,"ResetCart")==0){
                 
-                for(int i=0;i<1000;i++){
+                for(int i=0;i<MAX_SIZE;i++){
                     if(ps[i].ProductId>0 && ps[i].quantity<=quantity[ps[i].ProductId]){
                        int x=UpdateProductQ(ps[i],1);
                        if(!x){
@@ -199,8 +199,8 @@ void pthread_func(void *arg){
             if(strcmp(choice,"AddCart")==0){
 
                 read(*nsd,&item,sizeof(struct Cartitem));
-                if(item.ProductId<=1000){
-                    if(DB->DeletedP[item.ProductId]==-1 && session.items[item.ProductId].ProductId<=0)
+                if(item.ProductId<=MAX_SIZE){
+                    if(DB->DeletedP[item.ProductId]==-1 && session.items[item.ProductId].ProductId<=0 && item.ProductId<=DB->productscount)
                     {
                         lseek(DB->Datafd,(item.ProductId-1)*sizeof(struct Product),SEEK_SET);
                         read(DB->Datafd,&p,sizeof(struct Product));
@@ -223,8 +223,8 @@ void pthread_func(void *arg){
             else if(strcmp(choice,"DeleteCart")==0){
 
                 read(*nsd,&item,sizeof(struct Cartitem));
-                if(item.ProductId<=1000){
-                    if(DB->DeletedP[item.ProductId]==-1 && session.items[item.ProductId].ProductId >0){
+                if(item.ProductId<=MAX_SIZE){
+                    if(DB->DeletedP[item.ProductId]==-1 && session.items[item.ProductId].ProductId >0 && item.ProductId<=DB->productscount){
                         
                         session.items[item.ProductId].ProductId=-1;
                         session.items[item.ProductId].quantity=0;
@@ -240,8 +240,8 @@ void pthread_func(void *arg){
             else if(strcmp(choice,"UpdateCart")==0){
 
                 read(*nsd,&item,sizeof(struct Cartitem));
-                if(item.ProductId<=1000){
-                    if(DB->DeletedP[item.ProductId]==-1 && session.items[item.ProductId].ProductId>0)
+                if(item.ProductId<=MAX_SIZE){
+                    if(DB->DeletedP[item.ProductId]==-1 && session.items[item.ProductId].ProductId>0 && item.ProductId<=DB->productscount)
                     {
                         lseek(DB->Datafd,(item.ProductId-1)*sizeof(struct Product),SEEK_SET);
                         read(DB->Datafd,&p,sizeof(struct Product));
@@ -275,7 +275,7 @@ void pthread_func(void *arg){
             while(read(DB->Cartfd,&user,sizeof(struct Cart))>0){
                 if(strcmp(user.username,response)==0) {
                     session.userid=user.userid;
-                    for(int i=0;i<1000;i++){
+                    for(int i=0;i<MAX_SIZE;i++){
                         session.items->ProductId=user.items->ProductId;
                         session.items->quantity=user.items->quantity;
                     }
@@ -287,7 +287,7 @@ void pthread_func(void *arg){
             }
             if(check==0){
                 session.userid=newuserid+1;
-                memset(session.items,-1,sizeof(struct Cartitem)*1000);
+                memset(session.items,-1,sizeof(struct Cartitem)*MAX_SIZE);
                 write(DB->Cartfd,&session,sizeof(struct Cart));
             } 
 
@@ -314,8 +314,8 @@ int AddProduct(struct Product p){
 int DeleteProduct(int id){//Add existing error handling
     // int i=0;
     if(id>=DB->productscount) return 1;
-    // while(DB->DeletedP[i]!=-1 && i<1000) i++;
-    if(id<1000){
+    // while(DB->DeletedP[i]!=-1 && i<MAX_SIZE) i++;
+    if(id<MAX_SIZE){
         DB->DeletedP[id]=id;
         lseek(DB->Deletedfd,0,SEEK_SET);
         int w=write(DB->Deletedfd,&DB->DeletedP,sizeof(DB->DeletedP));
@@ -379,18 +379,18 @@ struct Product* DisplayProducts(int fd, int opt, struct Cartitem items[]){
     int i=0;//number of products
 
     struct Product p;
-    struct Product *products=(struct Product *)malloc(1000*(sizeof(struct Product)));
+    struct Product *products=(struct Product *)malloc(MAX_SIZE*(sizeof(struct Product)));
     while(read(fd,&p,sizeof(struct Product))>0){ //can be made efficient using hashing
         if(DB->DeletedP[p.ProductId]==-1){
             products[i]=p;
-            if(i<1000) i++;
+            if(i<MAX_SIZE) i++;
             else break;
         }
     }
 
     if(opt==1){
         
-        struct Product *carts=(struct Product *)malloc(1000*(sizeof(struct Product)));
+        struct Product *carts=(struct Product *)malloc(MAX_SIZE*(sizeof(struct Product)));
         int x=0;
         for(int index=0;index<i;index++){
             if(items[products[index].ProductId].ProductId>0){
