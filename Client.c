@@ -273,10 +273,10 @@ void ClientView(int clientFD){
             read(clientFD,cart,sizeof(struct Product)*MAX_SIZE);
             
             write(1,"\nItems ready for buying: \n",27);
-             write(1,"-------------------------------------------------------------------------\n",75);
+            write(1,"-------------------------------------------------------------------------\n",75);
         // write(1, "P_ID, P_Name, Cost, Quantity\n",30);
-                write(1,"| P_ID\t| P_Name\t\t| Cost\t  | Quantity | SubTotal\t\t|\n",52);
-                write(1,"-------------------------------------------------------------------------\n",75);
+            write(1,"| P_ID\t| P_Name\t\t| Cost\t  | Quantity | SubTotal\t\t|\n",52);
+            write(1,"-------------------------------------------------------------------------\n",75);
             int totalcost=0,size=0,esize=0;
             for(int i=0;i<MAX_SIZE;i++){
                 if(cart[i].ProductId!=0){
@@ -311,10 +311,13 @@ void ClientView(int clientFD){
 
                 read(clientFD,response,100);
                 write(1,response,strlen(response));
-
-
+                time_t t1;
+                srand((unsigned)time(&t1));
+                char num[10];
+                sprintf(num,"%d",rand()%100);
                 char filename[100]="log";
                 strcat(filename,cld.username);
+                strcat(filename,num);
                 strcat(filename,".txt");
                 int logfd=open(filename,O_CREAT|O_WRONLY,0666);
                 write(logfd,"Receipt\n---------------------------------------------------------------------\n",78);

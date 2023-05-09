@@ -94,6 +94,8 @@ void pthread_func(void *arg){
         read(*nsd,buffer,MAX_SIZE);
         struct Product p={0};
         write(1,buffer,strlen(buffer));
+        lseek(DB->Datafd,0,SEEK_SET);
+        DB->productscount=lseek(DB->Datafd,0,SEEK_END)/sizeof(struct Product);
         write(1,"\n", 1);
 
         if(strcmp(buffer,"Add")==0){
@@ -158,6 +160,7 @@ void pthread_func(void *arg){
             int quantity[MAX_SIZE];
             lseek(DB->Cartfd,(session.userid-1)*(sizeof(struct Cart)),SEEK_SET);
             ps=DisplayProducts(DB->Datafd, 0,(void *)0);
+
             for(int i=0;i<MAX_SIZE;i++){
                 if(ps[i].ProductId<=MAX_SIZE) quantity[ps[i].ProductId]=ps[i].quantity;
             }
@@ -166,26 +169,56 @@ void pthread_func(void *arg){
             ps=DisplayProducts(DB->Datafd,1,session.items);
             send(*nsd,ps,sizeof(struct Product)*MAX_SIZE,0);
 
+            struct flock lock[MAX_SIZE];
+            for(int i=0;i<MAX_SIZE;i++){
+                if(ps[i].ProductId>0 && ps[i].quantity<=quantity[ps[i].ProductId]){
+                    int q=ps[i].ProductId;
+                    memset (&lock[q], 0, sizeof(lock[q]));
+                    lock[q].l_type=F_WRLCK;
+                    lock[q].l_whence=SEEK_SET;
+                    lock[q].l_start=(q-1)*sizeof(struct Product);
+                    lock[q].l_len=sizeof(struct Product);
+                    lock[q].l_pid=getpid();
+                    fcntl(DB->Datafd, F_SETLKW, &lock[q]);
+                } 
+            }
+
             char buf[100];
             read(*nsd,buf,100);
             if(strcmp(buf,"ResetCart")==0){
-                
+
                 for(int i=0;i<MAX_SIZE;i++){
                     if(ps[i].ProductId>0 && ps[i].quantity<=quantity[ps[i].ProductId]){
-                       int x=UpdateProductQ(ps[i],1);//write separately
-                       if(!x){
+                        int x=UpdateProductQ(ps[i],1);
+                        int q=ps[i].ProductId;
+                        
+                        if(!x){
 
-                            session.items[ps[i].ProductId].ProductId=-1;
-                            session.items[ps[i].ProductId].quantity=0;
+                            session.items[q].ProductId=-1;
+                            session.items[q].quantity=0;
+                            lseek(DB->Cartfd,(session.userid-1)*(sizeof(struct Cart)),SEEK_SET);
                             write(DB->Cartfd,&session, sizeof(struct Cart));
-                            lseek(DB->Cartfd,(-1)*(sizeof(struct Cart)),SEEK_CUR);
-                       }
+                        }
+
+                        lock[q].l_type = F_UNLCK;
+                        fcntl(DB->Datafd, F_SETLKW, &lock[q]); 
                     } 
                 }
-
+                
                 send(*nsd,"Payment is successful, the receipt is available in pwd.\nYour cart is updated\n",78,0);
             }
 
+            else if(strcmp(buf,"Failed")==0){
+
+                for(int i=0;i<MAX_SIZE;i++){
+                    if(ps[i].ProductId>0 && ps[i].quantity<=quantity[ps[i].ProductId]){
+                        int q=ps[i].ProductId;
+                        lock[q].l_type = F_UNLCK;
+                        fcntl(DB->Datafd, F_SETLKW, &lock[q]); 
+                    } 
+                }
+                
+            }
         }
 
         else if(strcmp(buffer, "UpdateCart")==0){
@@ -298,14 +331,14 @@ void pthread_func(void *arg){
     return;
     
 }
-//Need to implement locking here or semaphore
+
 int AddProduct(struct Product p){
     
     p.ProductId=DB->productscount+1;
 
     lseek(DB->Datafd,0,SEEK_END);
     if(write(DB->Datafd,&p,sizeof(struct Product))>0){
-        DB->productscount+=1;
+        // DB->productscount+=1;
         return 0;
     };
     return 1;
@@ -336,12 +369,16 @@ int UpdateProductQ(struct Product p,int option){
     if(DB->DeletedP[p.ProductId]>0) return 1;
 
     struct flock lock;
-    memset (&lock, 0, sizeof(lock));
-    lock.l_type=F_WRLCK;
-    lock.l_whence=(p.ProductId-1)*sizeof(struct Product);
-    lock.l_start=SEEK_SET;
-    lock.l_len=sizeof(struct Product);
-    fcntl(DB->Datafd, F_SETLKW, &lock);
+    if(!option){
+       
+        memset (&lock, 0, sizeof(lock));
+        lock.l_type=F_WRLCK;
+        lock.l_start=(p.ProductId-1)*sizeof(struct Product);
+        lock.l_whence=SEEK_SET;
+        lock.l_len=sizeof(struct Product);
+        lock.l_pid=getpid();
+        fcntl(DB->Datafd, F_SETLKW, &lock);
+    }
 
     lseek(DB->Datafd, (p.ProductId-1)*sizeof(struct Product),SEEK_SET);
 
@@ -357,8 +394,11 @@ int UpdateProductQ(struct Product p,int option){
     lseek(DB->Datafd, (-1)*sizeof(struct Product),SEEK_CUR);
     int x=write(DB->Datafd,&p,sizeof(struct Product));
 
-    lock.l_type = F_UNLCK;
-    fcntl(DB->Datafd, F_SETLKW, &lock);
+    if(!option){
+        lock.l_type = F_UNLCK;
+        fcntl(DB->Datafd, F_SETLKW, &lock); 
+    }
+    
     if(x>0) return 0;
     return 1;
 
@@ -376,9 +416,10 @@ int UpdateProductP(struct Product p){
     struct flock lock;
     memset (&lock, 0, sizeof(lock));
     lock.l_type=F_WRLCK;
-    lock.l_whence=(p.ProductId-1)*sizeof(struct Product);
-    lock.l_start=SEEK_SET;
+    lock.l_start=(p.ProductId-1)*sizeof(struct Product);
+    lock.l_whence=SEEK_SET;
     lock.l_len=sizeof(struct Product);
+
     fcntl(DB->Datafd, F_SETLKW, &lock);
 
     lseek(DB->Datafd, (p.ProductId-1)*sizeof(struct Product),SEEK_SET);
