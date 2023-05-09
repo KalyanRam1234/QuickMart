@@ -172,7 +172,7 @@ void pthread_func(void *arg){
                 
                 for(int i=0;i<MAX_SIZE;i++){
                     if(ps[i].ProductId>0 && ps[i].quantity<=quantity[ps[i].ProductId]){
-                       int x=UpdateProductQ(ps[i],1);
+                       int x=UpdateProductQ(ps[i],1);//write separately
                        if(!x){
 
                             session.items[ps[i].ProductId].ProductId=-1;
@@ -335,7 +335,16 @@ int UpdateProductQ(struct Product p,int option){
     if(p.ProductId > DB->productscount) return 1; //have to update when server starts
     if(DB->DeletedP[p.ProductId]>0) return 1;
 
+    struct flock lock;
+    memset (&lock, 0, sizeof(lock));
+    lock.l_type=F_WRLCK;
+    lock.l_whence=(p.ProductId-1)*sizeof(struct Product);
+    lock.l_start=SEEK_SET;
+    lock.l_len=sizeof(struct Product);
+    fcntl(DB->Datafd, F_SETLKW, &lock);
+
     lseek(DB->Datafd, (p.ProductId-1)*sizeof(struct Product),SEEK_SET);
+
     read(DB->Datafd,&fp,sizeof(struct Product));
     p.cost=fp.cost;
     strcpy(p.ProductName,fp.ProductName);
@@ -348,6 +357,8 @@ int UpdateProductQ(struct Product p,int option){
     lseek(DB->Datafd, (-1)*sizeof(struct Product),SEEK_CUR);
     int x=write(DB->Datafd,&p,sizeof(struct Product));
 
+    lock.l_type = F_UNLCK;
+    fcntl(DB->Datafd, F_SETLKW, &lock);
     if(x>0) return 0;
     return 1;
 
@@ -362,12 +373,23 @@ int UpdateProductP(struct Product p){
         if(DB->DeletedP[p.ProductId]>0) return 1;
         // i++;
     // } 
+    struct flock lock;
+    memset (&lock, 0, sizeof(lock));
+    lock.l_type=F_WRLCK;
+    lock.l_whence=(p.ProductId-1)*sizeof(struct Product);
+    lock.l_start=SEEK_SET;
+    lock.l_len=sizeof(struct Product);
+    fcntl(DB->Datafd, F_SETLKW, &lock);
+
     lseek(DB->Datafd, (p.ProductId-1)*sizeof(struct Product),SEEK_SET);
     read(DB->Datafd,&fp,sizeof(struct Product));
     p.quantity=fp.quantity;
     strcpy(p.ProductName,fp.ProductName);
     lseek(DB->Datafd, (-1)*sizeof(struct Product),SEEK_CUR);
     int x=write(DB->Datafd,&p,sizeof(struct Product));
+
+    lock.l_type = F_UNLCK;
+    fcntl(DB->Datafd, F_SETLKW, &lock);
     if(x>0) return 0;
     return 1;
 }
@@ -380,7 +402,7 @@ struct Product* DisplayProducts(int fd, int opt, struct Cartitem items[]){
 
     struct Product p;
     struct Product *products=(struct Product *)malloc(MAX_SIZE*(sizeof(struct Product)));
-    while(read(fd,&p,sizeof(struct Product))>0){ //can be made efficient using hashing
+    while(read(fd,&p,sizeof(struct Product))>0){ 
         if(DB->DeletedP[p.ProductId]==-1){
             products[i]=p;
             if(i<MAX_SIZE) i++;
