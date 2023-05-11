@@ -268,9 +268,10 @@ void ClientView(int clientFD){
 
         }
         else if(choice==4){
-            //need lock here
+            
             memset(response, '\0', sizeof(response));
             send(clientFD, "BuyNow", 7,0);
+            
             int quantity[MAX_SIZE],invalid[100];
             struct Product *cart=(struct Product *)malloc(sizeof(struct Product)*MAX_SIZE);
             read(clientFD, quantity,sizeof(int)*MAX_SIZE);
