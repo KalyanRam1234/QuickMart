@@ -35,7 +35,9 @@ int main(){
             read(cld.clientFD,response,100);
             write(1,response,strlen(response));
             char username[100];
-            scanf("%s", username);
+            getchar();
+            scanf("%[^\n]s",username);
+            getchar();
             strcpy(cld.username,username);
             send(cld.clientFD,cld.username,strlen(cld.username),0);
             ClientView(cld.clientFD);
@@ -73,10 +75,12 @@ void AdminView(int clientFD){
 
                 write(1, "\nEnter Product Name: ",22);
                 char name[100];
-                scanf("%s",p.ProductName);
+                getchar();
+                scanf("%[^\n]s",name);
+               
                 // scanf("\n");
                 // fgets(name, 100, stdin);
-                // strcpy(p.ProductName,name);
+                strcpy(p.ProductName,name);
 
                 write(1, "Enter Product Cost: ",21);
                 scanf("%d", &p.cost);
