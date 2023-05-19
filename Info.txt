@@ -1,6 +1,0 @@
-
-Display cart of customer
-When user wants to buy items, the items that are to be bought needs to be locked to avoid other users from buying them. If there is a  second customer that wants to buy the same item, the item quantity needs to be decreased/removed after the first customer is done with their transaction.
-
-If only one product is being bought by a customer/ being updated by admin, rest of the products should not be locked.
-
